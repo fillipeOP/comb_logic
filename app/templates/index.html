@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logic Circuit Builder</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.2/joint.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>Logic Circuit Builder</h1>
+
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="Search for circuits...">
+        <button id="search-button">Search</button>
+    </div>
+
+    <div id="controls-container">
+        <button id="save-button">Save Circuit</button>
+        <button id="add-input-gate">Add Input Gate</button>
+        <textarea id="equation-input" placeholder="Enter equation..."></textarea>
+        <button id="create-from-equation">Create from Equation</button>
+    </div>
+    <div id="sub-circuits-container">
+        <h2>Sub-circuits</h2>
+        <ul id="sub-circuits-list"></ul>
+    </div>
+
+    <div id="paper-container"></div>
+
+    <div id="testing-container">
+        <h2>Test Circuit</h2>
+        <div id="custom-test-cases">
+            <h3>Custom Test Cases</h3>
+            <div id="inputs-container"></div>
+            <button id="add-input">Add Input</button>
+            <button id="run-test">Run Test</button>
+            <p>Output: <span id="test-output"></span></p>
+        </div>
+        <div id="truth-table-container">
+            <h3>Truth Table (for circuits with up to 6 inputs)</h3>
+            <button id="generate-truth-table">Generate Truth Table</button>
+            <table id="truth-table"></table>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.4.1/backbone.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jointjs/3.7.2/joint.js"></script>
+    <script src="{{ url_for('static', filename='js/gates.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+body {
+    font-family: sans-serif;
+}
+
+#paper-container {
+    border: 1px solid black;
+    width: 800px;
+    height: 600px;
+    float: left;
+}
+
+#testing-container {
+    margin-left: 20px;
+    float: left;
+}
+
+#search-container {
+    margin-bottom: 20px;
+}
+
+#sub-circuits-container {
+    float: left;
+    width: 200px;
+    margin-right: 20px;
+}
+
+#controls-container {
+    margin-bottom: 20px;
+}
