@@ -16,6 +16,7 @@ def parse_equation(equation_string):
         if isinstance(sub_expression, boolean.Symbol):
             gate = Gate(id=str(gate_id), type='INPUT', output=sub_expression.obj)
             circuit.gates.append(gate)
+            circuit.inputs.append(sub_expression.obj)
             return gate_id, gate_id
 
         elif isinstance(sub_expression, boolean.NOT):
@@ -26,8 +27,16 @@ def parse_equation(equation_string):
             circuit.connections.append(connection)
             return gate_id, gate_id
 
-        elif isinstance(sub_expression, boolean.AND) or isinstance(sub_expression, boolean.OR):
-            gate_type = 'AND' if isinstance(sub_expression, boolean.AND) else 'OR'
+        elif isinstance(sub_expression, (boolean.AND, boolean.OR, boolean.XOR, boolean.NAND, boolean.NOR, boolean.XNOR)):
+            gate_type_map = {
+                boolean.AND: 'AND',
+                boolean.OR: 'OR',
+                boolean.XOR: 'XOR',
+                boolean.NAND: 'NAND',
+                boolean.NOR: 'NOR',
+                boolean.XNOR: 'XNOR'
+            }
+            gate_type = gate_type_map[type(sub_expression)]
             gate = Gate(id=str(gate_id), type=gate_type)
             circuit.gates.append(gate)
 
@@ -40,6 +49,17 @@ def parse_equation(equation_string):
 
         return None, None
 
+    # Build the main circuit
+    final_gate_id, _ = build_circuit(expression)
 
-    build_circuit(expression)
+    # Add an output gate
+    output_gate_id = gate_id_counter
+    output_gate = Gate(id=str(output_gate_id), type='OUTPUT', output='Y')
+    circuit.gates.append(output_gate)
+    circuit.outputs.append('Y')
+
+    # Connect the final gate to the output gate
+    connection = Connection(from_gate=str(final_gate_id), to_gate=str(output_gate_id), to_input='in')
+    circuit.connections.append(connection)
+
     return circuit
