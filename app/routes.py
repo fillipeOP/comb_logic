@@ -1,6 +1,6 @@
 import json
 from flask import current_app as app, render_template, request, jsonify
-from .models import Circuit
+from .models import Circuit, Gate, Connection
 from .equation_parser import parse_equation
 from .simulation import simulate_circuit
 
