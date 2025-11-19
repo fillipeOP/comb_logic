@@ -12,7 +12,20 @@ const paper = new joint.dia.Paper({
     background: {
         color: 'rgba(240, 240, 240, 0.9)'
     },
-    cellViewNamespace: namespace
+    cellViewNamespace: namespace,
+    interactive: {
+        linkMove: true,
+        elementMove: true
+    },
+    defaultLink: new joint.shapes.standard.Link()
+});
+
+paper.on('link:connect', function(linkView, evt, elementViewConnected, magnet, arrowhead) {
+    const source = linkView.model.source();
+    const target = linkView.model.target();
+    if (source.port.group === 'in' || target.port.group === 'out') {
+        linkView.model.remove();
+    }
 });
 
 paper.on('element:pointerdblclick', function(elementView) {
@@ -70,14 +83,14 @@ paper.el.addEventListener('dragover', (event) => {
 });
 
 const gateCreationButtons = [
-    { id: 'add-and-gate', type: 'AND', label: 'AND Gate' },
-    { id: 'add-or-gate', type: 'OR', label: 'OR Gate' },
-    { id: 'add-not-gate', type: 'NOT', label: 'NOT Gate' },
-    { id: 'add-nand-gate', type: 'NAND', label: 'NAND Gate' },
-    { id: 'add-nor-gate', type: 'NOR', label: 'NOR Gate' },
-    { id: 'add-xor-gate', type: 'XOR', label: 'XOR Gate' },
-    { id: 'add-xnor-gate', type: 'XNOR', label: 'XNOR Gate' },
-    { id: 'add-buffer-gate', type: 'BUFFER', label: 'BUFFER Gate' }
+    { id: 'add-and-gate', type: 'And', label: 'AND Gate' },
+    { id: 'add-or-gate', type: 'Or', label: 'OR Gate' },
+    { id: 'add-not-gate', type: 'Not', label: 'NOT Gate' },
+    { id: 'add-nand-gate', type: 'Nand', label: 'NAND Gate' },
+    { id: 'add-nor-gate', type: 'Nor', label: 'NOR Gate' },
+    { id: 'add-xor-gate', type: 'Xor', label: 'XOR Gate' },
+    { id: 'add-xnor-gate', type: 'Xnor', label: 'XNOR Gate' },
+    { id: 'add-buffer-gate', type: 'Buffer', label: 'BUFFER Gate' }
 ];
 
 const createGate = (type) => {
@@ -99,10 +112,9 @@ gateCreationButtons.forEach(buttonInfo => {
     });
 });
 
+let outputGateCounter = 1;
 document.getElementById('add-output-gate').addEventListener('click', () => {
-    const name = prompt('Enter a name for the output gate:');
-    if (!name) return;
-
+    const name = `Output ${outputGateCounter++}`;
     const outputGate = new joint.shapes.logic.Output({
         position: { x: 500, y: 50 },
         attrs: {
@@ -173,10 +185,9 @@ function searchCircuits() {
         });
 }
 
+let circuitCounter = 1;
 function saveCircuit() {
-    const name = prompt('Enter a name for the circuit:');
-    if (!name) return;
-
+    const name = `Circuit ${circuitCounter++}`;
     const circuit = getCircuitData();
     circuit.name = name;
 
@@ -200,10 +211,9 @@ function saveCircuit() {
     });
 }
 
+let inputGateCounter = 1;
 function addInputGate() {
-    const name = prompt('Enter a name for the input gate:');
-    if (!name) return;
-
+    const name = `Input ${inputGateCounter++}`;
     const inputGate = new joint.shapes.logic.Input({
         position: { x: 50, y: 50 },
         attrs: {

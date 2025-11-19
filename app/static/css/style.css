@@ -4,9 +4,11 @@ body {
     grid-template-areas:
         "header header"
         "controls paper"
+        "gate-buttons paper"
         "sub-circuits paper"
         "testing paper";
     grid-template-columns: 300px 1fr;
+    grid-template-rows: auto auto auto 1fr auto;
     grid-gap: 20px;
     padding: 20px;
 }
@@ -22,7 +24,7 @@ h1 {
 }
 
 #controls-container { grid-area: controls; }
-#gate-buttons-container { grid-area: controls; margin-top: 150px; }
+#gate-buttons-container { grid-area: gate-buttons; }
 #sub-circuits-container { grid-area: sub-circuits; }
 #testing-container { grid-area: testing; }
 #paper-container { grid-area: paper; }
