@@ -5,8 +5,8 @@ const graph = new joint.dia.Graph({}, { cellNamespace: namespace });
 const paper = new joint.dia.Paper({
     el: document.getElementById('paper-container'),
     model: graph,
-    width: 800,
-    height: 600,
+    width: 1200,
+    height: 800,
     gridSize: 10,
     drawGrid: true,
     background: {
@@ -69,21 +69,50 @@ paper.el.addEventListener('dragover', (event) => {
     event.preventDefault();
 });
 
+const gateCreationButtons = [
+    { id: 'add-and-gate', type: 'AND', label: 'AND Gate' },
+    { id: 'add-or-gate', type: 'OR', label: 'OR Gate' },
+    { id: 'add-not-gate', type: 'NOT', label: 'NOT Gate' },
+    { id: 'add-nand-gate', type: 'NAND', label: 'NAND Gate' },
+    { id: 'add-nor-gate', type: 'NOR', label: 'NOR Gate' },
+    { id: 'add-xor-gate', type: 'XOR', label: 'XOR Gate' },
+    { id: 'add-xnor-gate', type: 'XNOR', label: 'XNOR Gate' },
+    { id: 'add-buffer-gate', type: 'BUFFER', label: 'BUFFER Gate' }
+];
 
-const andGate = new joint.shapes.logic.And({
-    position: { x: 100, y: 100 }
+const createGate = (type) => {
+    const gateClass = joint.shapes.logic[type];
+    if (gateClass) {
+        return new gateClass({
+            position: { x: 100, y: 100 }
+        });
+    }
+    return null;
+};
+
+gateCreationButtons.forEach(buttonInfo => {
+    document.getElementById(buttonInfo.id).addEventListener('click', () => {
+        const gate = createGate(buttonInfo.type);
+        if (gate) {
+            graph.addCell(gate);
+        }
+    });
 });
 
-const orGate = new joint.shapes.logic.Or({
-    position: { x: 300, y: 100 }
+document.getElementById('add-output-gate').addEventListener('click', () => {
+    const name = prompt('Enter a name for the output gate:');
+    if (!name) return;
+
+    const outputGate = new joint.shapes.logic.Output({
+        position: { x: 500, y: 50 },
+        attrs: {
+            label: {
+                text: name
+            }
+        }
+    });
+    graph.addCell(outputGate);
 });
-
-const notGate = new joint.shapes.logic.Not({
-    position: { x: 500, y: 100 }
-});
-
-graph.addCells([andGate, orGate, notGate]);
-
 
 // Testing and Validation Logic
 
@@ -152,7 +181,7 @@ function saveCircuit() {
     circuit.name = name;
 
     const inputs = circuit.gates.filter(g => g.type === 'INPUT').map(g => g.output);
-    const outputs = []; // TBD: How to define outputs
+    const outputs = circuit.gates.filter(g => g.type === 'OUTPUT').map(g => g.output);
 
     circuit.inputs = inputs;
     circuit.outputs = outputs;
@@ -257,13 +286,14 @@ function runTest() {
     })
     .then(response => response.json())
     .then(data => {
-        document.getElementById('test-output').textContent = data.output;
+        document.getElementById('test-output').textContent = JSON.stringify(data.output);
     });
 }
 
 function generateTruthTable() {
     const circuit = getCircuitData();
     const inputGates = circuit.gates.filter(g => g.type === 'INPUT');
+    const outputGates = circuit.gates.filter(g => g.type === 'OUTPUT');
 
     if (inputGates.length > 6) {
         alert('Truth table can only be generated for circuits with up to 6 inputs.');
@@ -279,8 +309,10 @@ function generateTruthTable() {
         const cell = headerRow.insertCell(-1);
         cell.textContent = gate.output;
     });
-    const outputCell = headerRow.insertCell(-1);
-    outputCell.textContent = 'Output';
+    outputGates.forEach(gate => {
+        const cell = headerRow.insertCell(-1);
+        cell.textContent = gate.output;
+    });
 
     const numRows = 2 ** inputGates.length;
     for (let i = 0; i < numRows; i++) {
@@ -302,8 +334,10 @@ function generateTruthTable() {
         })
         .then(response => response.json())
         .then(data => {
-            const outputCell = row.insertCell(-1);
-            outputCell.textContent = data.output ? 1 : 0;
+            outputGates.forEach(gate => {
+                const cell = row.insertCell(-1);
+                cell.textContent = data.output[gate.output] ? 1 : 0;
+            });
         });
     }
 }

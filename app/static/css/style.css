@@ -1,29 +1,52 @@
 body {
     font-family: sans-serif;
+    display: grid;
+    grid-template-areas:
+        "header header"
+        "controls paper"
+        "sub-circuits paper"
+        "testing paper";
+    grid-template-columns: 300px 1fr;
+    grid-gap: 20px;
+    padding: 20px;
 }
 
-#paper-container {
-    border: 1px solid black;
-    width: 800px;
-    height: 600px;
-    float: left;
+h1 {
+    grid-area: header;
 }
 
-#testing-container {
-    margin-left: 20px;
-    float: left;
+#controls-container, #gate-buttons-container, #sub-circuits-container, #testing-container, #search-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-#search-container {
-    margin-bottom: 20px;
+#controls-container { grid-area: controls; }
+#gate-buttons-container { grid-area: controls; margin-top: 150px; }
+#sub-circuits-container { grid-area: sub-circuits; }
+#testing-container { grid-area: testing; }
+#paper-container { grid-area: paper; }
+
+#sub-circuits-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
-#sub-circuits-container {
-    float: left;
-    width: 200px;
-    margin-right: 20px;
+#sub-circuits-list li {
+    padding: 10px;
+    border: 1px solid #ccc;
+    margin-bottom: 5px;
+    cursor: grab;
 }
 
-#controls-container {
-    margin-bottom: 20px;
+#truth-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#truth-table th, #truth-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: center;
 }
