@@ -1,13 +1,7 @@
-import { GoogleGenAI, Type } from "@google/genai";
+// Removed GoogleGenAI import
+// import { GoogleGenAI, Type } from "@google/genai";
 
-// Note: In a real production app, this should be proxied through a backend.
-// Using process.env.API_KEY as per instructions.
-const apiKey = process.env.API_KEY;
-let ai: GoogleGenAI | null = null;
-
-if (apiKey) {
-    ai = new GoogleGenAI({ apiKey });
-}
+const AGENT_API_URL = "https://opgpt.apps.k3s-shared-dev.itaipu.int/v2/";
 
 export interface AiAnalysisResult {
   explanation: string;
@@ -37,11 +31,95 @@ export interface AiBuilderResult {
     explanation: string;
 }
 
+interface AgentRequest {
+    query: string;
+    user: {
+        id: string;
+        name: string;
+        email: string;
+        credentials: string[];
+        additionalProperties: Record<string, any>;
+    };
+    chatHistory: { type: string; content: string }[];
+    attachments: { contentType: string; name: string; uri: string }[];
+    resourceUriFilters: string[];
+    options: {
+        supportAttachments: boolean;
+        exportData: boolean;
+        returnOnlyData: boolean;
+    };
+    additionalArgs: Record<string, any>;
+}
+
+// Helper function to call the local agent API
+const callAgentApi = async (prompt: string): Promise<string | null> => {
+    const payload: AgentRequest = {
+        query: prompt,
+        user: {
+            id: "user-default",
+            name: "LogicLab User",
+            email: "user@logiclab.internal",
+            credentials: [],
+            additionalProperties: { additionalProp1: {} }
+        },
+        chatHistory: [],
+        attachments: [],
+        resourceUriFilters: [],
+        options: {
+            supportAttachments: true,
+            exportData: false,
+            returnOnlyData: false
+        },
+        additionalArgs: { additionalProp1: {} }
+    };
+
+    try {
+        const response = await fetch(AGENT_API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            console.error(`Agent API Error: ${response.status} ${response.statusText}`);
+            return null;
+        }
+
+        const data = await response.json();
+        // Assuming the agent returns the answer in a field like 'text' or 'answer' or 'content'.
+        if (typeof data === 'string') return data;
+        if (data.text) return data.text;
+        if (data.answer) return data.answer;
+        if (data.content) return data.content;
+
+        return JSON.stringify(data);
+
+    } catch (error) {
+        console.error("Agent API Connection Error:", error);
+        return null;
+    }
+};
+
+// Helper to clean Markdown JSON code blocks if present
+const cleanJsonString = (str: string): string => {
+    // Remove ```json ... ``` wrappers if they exist
+    let cleaned = str.trim();
+    if (cleaned.startsWith('```')) {
+        const firstLineBreak = cleaned.indexOf('\n');
+        if (firstLineBreak !== -1) {
+            cleaned = cleaned.substring(firstLineBreak + 1);
+        }
+        if (cleaned.endsWith('```')) {
+            cleaned = cleaned.substring(0, cleaned.length - 3);
+        }
+    }
+    return cleaned.trim();
+}
+
 export const explainCircuit = async (circuitContext: string): Promise<AiAnalysisResult> => {
-  if (!ai) return { explanation: "API Key not configured.", simplifiedEquation: "", vhdl: "", verilog: "" };
-  
   try {
-    const model = 'gemini-2.5-flash';
     const prompt = `
       You are an expert Digital Logic Engineer.
       I will provide you with either a Boolean Equation OR a Structural Netlist description of a digital circuit.
@@ -64,29 +142,21 @@ export const explainCircuit = async (circuitContext: string): Promise<AiAnalysis
          - Create a Module.
          - If Sequential: Use 'always @(posedge clk)' for flip-flops.
          - If Combinational: Use 'assign' statements.
+
+      IMPORTANT: Return ONLY a valid JSON object with the following structure:
+      {
+        "explanation": "Markdown explanation...",
+        "simplifiedEquation": "equation or note",
+        "vhdl": "code...",
+        "verilog": "code..."
+      }
+      Do not include any other text.
     `;
 
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-                explanation: { type: Type.STRING, description: "Markdown explanation of the circuit logic." },
-                simplifiedEquation: { type: Type.STRING, description: "The simplified boolean equation string (or 'Sequential Logic' note)." },
-                vhdl: { type: Type.STRING, description: "VHDL code snippet." },
-                verilog: { type: Type.STRING, description: "Verilog code snippet." }
-            }
-        }
-      }
-    });
+    const text = await callAgentApi(prompt);
+    if (!text) return { explanation: "No response from AI Agent.", simplifiedEquation: "", vhdl: "", verilog: "" };
 
-    const text = response.text;
-    if (!text) return { explanation: "No response from AI.", simplifiedEquation: "", vhdl: "", verilog: "" };
-
-    const json = JSON.parse(text);
+    const json = JSON.parse(cleanJsonString(text));
     return {
         explanation: json.explanation || "No analysis available.",
         simplifiedEquation: json.simplifiedEquation || "",
@@ -94,15 +164,12 @@ export const explainCircuit = async (circuitContext: string): Promise<AiAnalysis
         verilog: json.verilog || "// No Verilog generated"
     };
   } catch (error) {
-    console.error("Gemini Error:", error);
-    return { explanation: "Error connecting to AI assistant.", simplifiedEquation: "", vhdl: "", verilog: "" };
+    console.error("Agent Analysis Error:", error);
+    return { explanation: "Error parsing AI response.", simplifiedEquation: "", vhdl: "", verilog: "" };
   }
 };
 
 export const generateCircuitFromText = async (description: string): Promise<AiBuilderResult | null> => {
-    if (!ai) return null;
-
-    const model = 'gemini-2.5-flash';
     const prompt = `
     You are an expert Digital Logic Designer and VHDL/Verilog Engineer.
     The user wants to build a digital circuit described as: "${description}".
@@ -136,57 +203,21 @@ export const generateCircuitFromText = async (description: string): Promise<AiBu
     - SR_FF: 0=S, 1=R, 2=Clock
     - HEX_DISPLAY: 0=8(MSB), 1=4, 2=2, 3=1(LSB)
     
-    Response Format (JSON):
-    1. 'components': List of { type, label, x, y }. 'label' must be unique.
-    2. 'connections': List of { sourceLabel, targetLabel, targetPinIndex }.
-    3. 'vhdl': Complete VHDL code.
-    4. 'verilog': Complete Verilog code.
-    5. 'explanation': Brief summary of the design.
+    IMPORTANT: Return ONLY a valid JSON object with the following structure:
+    {
+      "components": [ { "type": "...", "label": "...", "x": 0, "y": 0 } ],
+      "connections": [ { "sourceLabel": "...", "targetLabel": "...", "targetPinIndex": 0 } ],
+      "vhdl": "...",
+      "verilog": "...",
+      "explanation": "..."
+    }
+    Do not include any other text.
     `;
 
     try {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        components: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    type: { type: Type.STRING },
-                                    label: { type: Type.STRING },
-                                    x: { type: Type.NUMBER },
-                                    y: { type: Type.NUMBER }
-                                }
-                            }
-                        },
-                        connections: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    sourceLabel: { type: Type.STRING },
-                                    targetLabel: { type: Type.STRING },
-                                    targetPinIndex: { type: Type.NUMBER }
-                                }
-                            }
-                        },
-                        vhdl: { type: Type.STRING },
-                        verilog: { type: Type.STRING },
-                        explanation: { type: Type.STRING }
-                    }
-                }
-            }
-        });
-
-        const text = response.text;
+        const text = await callAgentApi(prompt);
         if (!text) return null;
-        return JSON.parse(text) as AiBuilderResult;
+        return JSON.parse(cleanJsonString(text)) as AiBuilderResult;
     } catch (e) {
         console.error("AI Builder Error:", e);
         return null;
@@ -194,9 +225,6 @@ export const generateCircuitFromText = async (description: string): Promise<AiBu
 };
 
 export const generateCircuitFromHDL = async (code: string): Promise<AiBuilderResult | null> => {
-    if (!ai) return null;
-
-    const model = 'gemini-2.5-flash';
     const prompt = `
     You are an expert Digital Logic Engineer.
     The user has provided the following HDL code (VHDL or Verilog):
@@ -230,57 +258,21 @@ export const generateCircuitFromHDL = async (code: string): Promise<AiBuilderRes
     - SR_FF: 0=S, 1=R, 2=Clock
     - HEX_DISPLAY: 0=8, 1=4, 2=2, 3=1
 
-    Response Format (JSON):
-    1. 'components': List of { type, label, x, y }.
-    2. 'connections': List of { sourceLabel, targetLabel, targetPinIndex }.
-    3. 'vhdl': Cleaned VHDL code.
-    4. 'verilog': Cleaned Verilog code.
-    5. 'explanation': Brief summary of the synthesized circuit.
+    IMPORTANT: Return ONLY a valid JSON object with the following structure:
+    {
+      "components": [ { "type": "...", "label": "...", "x": 0, "y": 0 } ],
+      "connections": [ { "sourceLabel": "...", "targetLabel": "...", "targetPinIndex": 0 } ],
+      "vhdl": "...",
+      "verilog": "...",
+      "explanation": "..."
+    }
+    Do not include any other text.
     `;
 
     try {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        components: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    type: { type: Type.STRING },
-                                    label: { type: Type.STRING },
-                                    x: { type: Type.NUMBER },
-                                    y: { type: Type.NUMBER }
-                                }
-                            }
-                        },
-                        connections: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    sourceLabel: { type: Type.STRING },
-                                    targetLabel: { type: Type.STRING },
-                                    targetPinIndex: { type: Type.NUMBER }
-                                }
-                            }
-                        },
-                        vhdl: { type: Type.STRING },
-                        verilog: { type: Type.STRING },
-                        explanation: { type: Type.STRING }
-                    }
-                }
-            }
-        });
-
-        const text = response.text;
+        const text = await callAgentApi(prompt);
         if (!text) return null;
-        return JSON.parse(text) as AiBuilderResult;
+        return JSON.parse(cleanJsonString(text)) as AiBuilderResult;
     } catch (e) {
         console.error("HDL Builder Error:", e);
         return null;
