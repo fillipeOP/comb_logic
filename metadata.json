@@ -1,0 +1,5 @@
+{
+  "name": "LogicLab: Circuit Designer & Simulator",
+  "description": "A professional-grade logic circuit simulator. Build combinational circuits, generate truth tables, convert equations to circuits, and analyze logic using Gemini AI.",
+  "requestFramePermissions": []
+}
